@@ -47,7 +47,7 @@ searchByID <- function(myFile, idtype, datatype = "application/xml", content = "
 	library(httr)
 	library(XML)
 	key <- "yourAPIKeyGoesHere"
-	theIDs <- scan(myFile, what = "varchar") ## load the list of IDs into a character vector
+	theIDs <- unique(scan(myFile, what = "varchar")) ## load the list of IDs into a character vector
 	resultCount <- as.numeric(length(theIDs)) ## get the total number of IDs
 	idList <- split(theIDs, ceiling(seq_along(theIDs)/25)) ## split the IDs into batches of 25
 	theData <- " " ## create an empty character holder for the XML
