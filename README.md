@@ -1,6 +1,6 @@
 # scopusAPI
 
-The functions in this file allow you to query the Scopus Search API in R and parse the results into a data frame. The file contains three functions: searchByString() which allows you to query the API using an advanced search string, searchByID() which allows you to search for a list of article IDs (either PMIDs or DOIs), and extractXML() which extracts values from the XML and parses them into a data frame you can work with in R.
+The functions in this file allow you to query the Scopus Search API in R and parse the results into a data frame. The file contains three functions: searchByString() which allows you to query the API using an advanced search string, searchByID() which allows you to search for a list of article IDs (PMIDs, DOIs, or Scopus EIDs), and extractXML() which extracts values from the XML and parses them into a data frame you can work with in R.
 
 ## Before you begin
 
