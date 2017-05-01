@@ -8,7 +8,7 @@ searchByString <- function(string, datatype = "application/xml", content = "comp
 	else {
 		library(httr)
 		library(XML)
-		key <- "yourAPIKeyGoesHere"
+		key <- "yourAPIkey"
 		print("Retrieving records.")
 		theURL <- GET("http://api.elsevier.com/content/search/scopus", query = list(apiKey = key, query = string, httpAccept = datatype, view = content, count = retCount, start = myStart)) ## format the URL to be sent to the API
 		stop_for_status(theURL) ## pass any HTTP errors to the R console
@@ -46,7 +46,7 @@ searchByString <- function(string, datatype = "application/xml", content = "comp
 searchByID <- function(myFile, idtype, datatype = "application/xml", content = "complete", myStart = 0, retCount = 25, outfile) {
 	library(httr)
 	library(XML)
-	key <- "yourAPIKeyGoesHere"
+	key <- "yourAPIkey"
 	theIDs <- unique(scan(myFile, what = "varchar")) ## load the list of IDs into a character vector
 	resultCount <- as.numeric(length(theIDs)) ## get the total number of IDs
 	idList <- split(theIDs, ceiling(seq_along(theIDs)/25)) ## split the IDs into batches of 25
@@ -106,8 +106,35 @@ searchByID <- function(myFile, idtype, datatype = "application/xml", content = "
 		print("Done")
 		return(theData)
 	}
+	else if (idtype == "eid") {
+	idList <- lapply(mapply(paste, "EID(", idList, collapse = ") OR "), paste, ")") ## append the correct scopus search syntax around each number
+	print(paste("Retrieving", resultCount, "records."))
+	for (i in 1:length(idList)) {
+		string <- idList[i]
+		theURL <- GET("http://api.elsevier.com/content/search/scopus", query = list(apiKey = key, query = string, httpAccept = datatype, view = content, count = retCount, start = myStart))
+		theData <- paste(theData, content(theURL, as = "text")) ## paste new theURL content to theData
+		if (http_error(theURL) == TRUE) { ## check if there's an HTTP error
+			print("Encountered an HTTP error. Details follow.") ## alert the user to the error
+			print(http_status(theURL)) ## print out the error category, reason, and message
+			break ## if there's an HTTP error, break out of the loop and return the data that has been retrieved
+			}
+		Sys.sleep(1)
+		retrievedCount <- retrievedCount + retCount
+		print(paste("Retrieved", retrievedCount, "of", resultCount, "records. Getting more."))
+	}
+	print(paste("Retrieved", retrievedCount, "records. Formatting results."))
+	writeLines(theData, outfile, useBytes = TRUE)
+	theData <- readChar(outfile, file.info(outfile)$size)
+	theData <- gsub("<?xml version=\"1.0\" encoding=\"UTF-8\"?><search-results xmlns=\"http://www.w3.org/2005/Atom\" xmlns:cto=\"http://www.elsevier.com/xml/cto/dtd\" xmlns:atom=\"http://www.w3.org/2005/Atom\" xmlns:prism=\"http://prismstandard.org/namespaces/basic/2.0/\" xmlns:opensearch=\"http://a9.com/-/spec/opensearch/1.1/\" xmlns:dc=\"http://purl.org/dc/elements/1.1/\">", "", theData, fixed = TRUE, useBytes = TRUE)
+	theData <- gsub("</search-results>", "", theData, fixed = TRUE)
+	theData <- paste("<?xml version=\"1.0\" encoding=\"UTF-8\"?><search-results xmlns=\"http://www.w3.org/2005/Atom\" xmlns:cto=\"http://www.elsevier.com/xml/cto/dtd\" xmlns:atom=\"http://www.w3.org/2005/Atom\" xmlns:prism=\"http://prismstandard.org/namespaces/basic/2.0/\" xmlns:opensearch=\"http://a9.com/-/spec/opensearch/1.1/\" xmlns:dc=\"http://purl.org/dc/elements/1.1/\">", theData)
+	theData <- paste(theData, "</search-results>")
+	writeLines(theData, outfile, useBytes = TRUE)
+	print("Done")
+	return(theData)
+	}
 	else {
-		stop("Invalid idtype. Valid idtypes are 'pmid' or 'doi'")
+		stop("Invalid idtype. Valid idtypes are 'pmid', 'doi', or 'eid'")
 	}
 }
 
@@ -140,25 +167,39 @@ extractXML <- function(theFile) {
 	countries[sapply(countries, is.list)] <- NA
 	countries <- sapply(countries, paste, collapse = "|")
 	countries <- sapply(strsplit(countries, "|", fixed = TRUE), unique) ## remove the duplicate country listings
-	countries <- sapply(countries, paste, collapse = "|")
-	year <- xpathSApply(newData,"//prism:coverDate", xmlValue) 
+	countries <- sapply(countries, paste, collapse = "|") 
+	year <- lapply(records, xpathSApply, "./prism:coverDate", xmlValue, namespaces = c(prism = "http://prismstandard.org/namespaces/basic/2.0/"))
+	year[sapply(year, is.list)] <- NA
+	year <- unlist(year)
 	year <- gsub("\\-..", "", year) ## extract only year from coverDate string (e.g. extract "2015" from "2015-01-01")
-	articletitle <- xpathSApply(newData,"//dc:title", xmlValue)
-	journal <- xpathSApply(newData,"//prism:publicationName", xmlValue)
+	articletitle <- lapply(records, xpathSApply, "./dc:title", xmlValue, namespaces = c(dc = "http://purl.org/dc/elements/1.1/"))
+	articletitle[sapply(articletitle, is.list)] <- NA
+	articletitle <- unlist(articletitle)
+	journal <- lapply(records, xpathSApply, "./prism:publicationName", xmlValue, namespaces = c(prism = "http://prismstandard.org/namespaces/basic/2.0/")) ## handle potentially missing issue nodes
+	journal[sapply(journal, is.list)] <- NA
+	journal <- unlist(journal)
 	volume <- lapply(records, xpathSApply, "./prism:volume", xmlValue, namespaces = c(prism = "http://prismstandard.org/namespaces/basic/2.0/")) ## handle potentially missing issue nodes
 	volume[sapply(volume, is.list)] <- NA
 	volume <- unlist(volume)
 	issue <- lapply(records, xpathSApply, "./prism:issueIdentifier", xmlValue, namespaces = c(prism = "http://prismstandard.org/namespaces/basic/2.0/")) ## handle potentially missing issue nodes
 	issue[sapply(issue, is.list)] <- NA
 	issue <- unlist(issue)
-	pages <- xpathSApply(newData,"//prism:pageRange", xmlValue)
+	pages <- lapply(records, xpathSApply, "./prism:pageRange", xmlValue, namespaces = c(prism = "http://prismstandard.org/namespaces/basic/2.0/")) ## handle potentially missing issue nodes
+	pages[sapply(pages, is.list)] <- NA
+	pages <- unlist(pages)
 	abstract <- lapply(records, xpathSApply, "./dc:description", xmlValue, namespaces = c(dc = "http://purl.org/dc/elements/1.1/")) ## handle potentially missing abstract nodes
 	abstract[sapply(abstract, is.list)] <- NA
 	abstract <- unlist(abstract)
-	ptype <- xpathSApply(newData,"//cto:subtypeDescription", xmlValue, namespaces = "cto")
+	keywords <- lapply(records, xpathSApply, "./cto:authkeywords", xmlValue, namespaces = "cto")
+	keywords[sapply(keywords, is.list)] <- NA
+	keywords <- unlist(keywords)
+	keywords <- gsub(" | ", "|", keywords, fixed = TRUE)
+	ptype <- lapply(records, xpathSApply, "./cto:subtypeDescription", xmlValue, namespaces = "cto")
+	ptype[sapply(ptype, is.list)] <- NA
+	ptype <- unlist(ptype)
 	timescited <- lapply(records, xpathSApply, "./cto:citedby-count", xmlValue, namespaces = "cto")
 	timescited[sapply(timescited, is.list)] <- NA
 	timescited <- unlist(timescited)
-	theDF <- data.frame(scopusID, doi, pmid, authors, affiliations, countries, year, articletitle, journal, volume, issue, pages, abstract, ptype, timescited, stringsAsFactors = FALSE)
+	theDF <- data.frame(scopusID, doi, pmid, authors, affiliations, countries, year, articletitle, journal, volume, issue, pages, keywords, abstract, ptype, timescited, stringsAsFactors = FALSE)
 	return(theDF)
 }
