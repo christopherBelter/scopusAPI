@@ -6,7 +6,7 @@ The functions in this file allow you to query the Scopus Search API in R and par
 
 You will need to obtain a personal API key from Elsevier. You can request one at http://dev.elsevier.com/. Click on the "Get API Key" button, log in to the site, and then click on "register a new site." Enter the requested information and use your institution's home page as the site. 
 
-You will then need to copy/paste your API key into the scopusAPI.R file at lines 11 and 49, replacing the yourAPIKeyGoesHere text with your API key.
+You will then need to copy/paste your API key into the scopusAPI.R file at lines 11 and 49, replacing the yourAPIkey text with your API key.
 
 You will also need to install the httr and XML packages, if you haven't already done so, with the command
 
