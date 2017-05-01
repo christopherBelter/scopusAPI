@@ -36,9 +36,9 @@ All but two of these arguments have default values: datatype defaults to "applic
 
 ## The searchByID() method
 
-This function allows you to search for a list of article IDs and download the matching search results. It can search for either PMIDs or DOIs. The function expects the list of article IDs to be in a text file with a single article ID per line.
+This function allows you to search for a list of article IDs and download the matching search results. It can search for PMIDs, DOIs, or EIDs (Scopus ID numbers). The function expects the list of article IDs to be in a text file with a single article ID per line.
 
-The function has all of the same arguments and default values as the searchByString() method, but it also has an "idtype" argument which requires you to specify what kind of article ID you want to search for (either "pmid" or "doi"). 
+The function has all of the same arguments and default values as the searchByString() method, but it also has an "idtype" argument which requires you to specify what kind of article ID you want to search for ("pmid", "doi", or "eid"). 
 
 ## The extractXML() function
 
