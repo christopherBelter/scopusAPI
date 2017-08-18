@@ -1,4 +1,4 @@
-searchByString <- function(string, datatype = "application/xml", content = "complete", myStart = 0, retCount = 25, outfile) {
+searchByString <- function(string, datatype = "application/xml", content = "complete", myStart = 0, retCount = 25, retMax = Inf, mySort = "-coverDate", outfile) {
 	if (!datatype %in% c("application/xml", "application/json", "application/atom+xml")) { ## error checking for valid inputs to the function
 		stop("Invalid datatype. Valid types are 'application/xml', 'application/json', and 'application/atom+xml'")
 	}
@@ -10,17 +10,17 @@ searchByString <- function(string, datatype = "application/xml", content = "comp
 		library(XML)
 		key <- "yourAPIkey"
 		print("Retrieving records.")
-		theURL <- GET("http://api.elsevier.com/content/search/scopus", query = list(apiKey = key, query = string, httpAccept = datatype, view = content, count = retCount, start = myStart)) ## format the URL to be sent to the API
+		theURL <- GET("http://api.elsevier.com/content/search/scopus", query = list(apiKey = key, query = string, sort = mySort, httpAccept = datatype, view = content, count = retCount, start = myStart)) ## format the URL to be sent to the API
 		stop_for_status(theURL) ## pass any HTTP errors to the R console
 		theData <- content(theURL, as = "text") ## extract the content of the response
 		newData <- xmlParse(theURL) ## parse the data to extract values
 		resultCount <- as.numeric(xpathSApply(newData,"//opensearch:totalResults", xmlValue)) ## get the total number of search results for the string
 		print(paste("Found", resultCount, "records."))
 		retrievedCount <- retCount + myStart ## set the current number of results retrieved for the designated start and count parameters
-		while (resultCount > retrievedCount) { ## check if it's necessary to perform multiple requests to retrieve all of the results; if so, create a loop to retrieve additional pages of results
+		while (resultCount > retrievedCount && retrievedCount < retMax) { ## check if it's necessary to perform multiple requests to retrieve all of the results; if so, create a loop to retrieve additional pages of results
 			myStart <- myStart + retCount ## add the number of records already returned to the start number
 			print(paste("Retrieved", retrievedCount, "of", resultCount, "records. Getting more."))
-			theURL <- GET("http://api.elsevier.com/content/search/scopus", query = list(apiKey = key, query = string, httpAccept = datatype, view = content, count = retCount, start = myStart)) ## get the next page of results
+			theURL <- GET("http://api.elsevier.com/content/search/scopus", query = list(apiKey = key, query = string,  sort = mySort, httpAccept = datatype, view = content, count = retCount, start = myStart)) ## get the next page of results
 			theData <- paste(theData, content(theURL, as = "text")) ## paste new theURL content to theData; if there's an HTTP error, the XML of the error will be pasted to the end of theData
 			if (http_error(theURL) == TRUE) { ## check if there's an HTTP error
 				print("Encountered an HTTP error. Details follow.") ## alert the user to the error
@@ -33,7 +33,8 @@ searchByString <- function(string, datatype = "application/xml", content = "comp
 		print(paste("Retrieved", retrievedCount, "records. Formatting results."))
 		writeLines(theData, outfile, useBytes = TRUE) ## if there were multiple pages of results, they come back as separate XML files pasted into the single outfile; the theData XML object can't be coerced into a string to do find/replace operations, so I think it must be written to a file and then reloaded; useBytes = TRUE keeps the UTF-8 encoding of special characters like the copyright symbol so they won't throw an error later
 		theData <- readChar(outfile, file.info(outfile)$size) ## convert the XML results to a character vector of length 1 that can be manipulated
-		theData <- gsub("<?xml version=\"1.0\" encoding=\"UTF-8\"?><search-results xmlns=\"http://www.w3.org/2005/Atom\" xmlns:cto=\"http://www.elsevier.com/xml/cto/dtd\" xmlns:atom=\"http://www.w3.org/2005/Atom\" xmlns:prism=\"http://prismstandard.org/namespaces/basic/2.0/\" xmlns:opensearch=\"http://a9.com/-/spec/opensearch/1.1/\" xmlns:dc=\"http://purl.org/dc/elements/1.1/\">", "", theData, fixed = TRUE, useBytes = TRUE)
+		theData <- gsub("<?xml version=\"1.0\" encoding=\"UTF-8\"?>", "", theData, fixed = TRUE, useBytes = TRUE)
+		theData <- gsub("<search-results.+?>", "", theData, useBytes = TRUE)
 		theData <- gsub("</search-results>", "", theData, fixed = TRUE) ## remove all headers and footers of the separate XML files
 		theData <- paste("<?xml version=\"1.0\" encoding=\"UTF-8\"?><search-results xmlns=\"http://www.w3.org/2005/Atom\" xmlns:cto=\"http://www.elsevier.com/xml/cto/dtd\" xmlns:atom=\"http://www.w3.org/2005/Atom\" xmlns:prism=\"http://prismstandard.org/namespaces/basic/2.0/\" xmlns:opensearch=\"http://a9.com/-/spec/opensearch/1.1/\" xmlns:dc=\"http://purl.org/dc/elements/1.1/\">", theData)
 		theData <- paste(theData, "</search-results>") ## add the correct header to the beginning of the file and the correct footer to the end of the file
@@ -43,11 +44,16 @@ searchByString <- function(string, datatype = "application/xml", content = "comp
 	}
 }
 
-searchByID <- function(myFile, idtype, datatype = "application/xml", content = "complete", myStart = 0, retCount = 25, outfile) {
+searchByID <- function(theIDs, idtype, datatype = "application/xml", content = "complete", myStart = 0, retCount = 25, outfile) {
 	library(httr)
 	library(XML)
 	key <- "yourAPIkey"
-	theIDs <- unique(scan(myFile, what = "varchar")) ## load the list of IDs into a character vector
+	if (length(theIDs) == 1) {
+		theIDs <- unique(scan(theIDs, what = "varchar")) ## load the list of IDs into a character vector
+	}
+	else {
+		theIDs <- unique(as.character(theIDs))
+	}
 	resultCount <- as.numeric(length(theIDs)) ## get the total number of IDs
 	idList <- split(theIDs, ceiling(seq_along(theIDs)/25)) ## split the IDs into batches of 25
 	theData <- " " ## create an empty character holder for the XML
@@ -71,10 +77,12 @@ searchByID <- function(myFile, idtype, datatype = "application/xml", content = "
 		print(paste("Retrieved", retrievedCount, "records. Formatting results."))
 		writeLines(theData, outfile, useBytes = TRUE)
 		theData <- readChar(outfile, file.info(outfile)$size)
-		theData <- gsub("<?xml version=\"1.0\" encoding=\"UTF-8\"?><search-results xmlns=\"http://www.w3.org/2005/Atom\" xmlns:cto=\"http://www.elsevier.com/xml/cto/dtd\" xmlns:atom=\"http://www.w3.org/2005/Atom\" xmlns:prism=\"http://prismstandard.org/namespaces/basic/2.0/\" xmlns:opensearch=\"http://a9.com/-/spec/opensearch/1.1/\" xmlns:dc=\"http://purl.org/dc/elements/1.1/\">", "", theData, fixed = TRUE, useBytes = TRUE)
-		theData <- gsub("</search-results>", "", theData, fixed = TRUE)
+		theData <- gsub("<?xml version=\"1.0\" encoding=\"UTF-8\"?>", "", theData, fixed = TRUE, useBytes = TRUE)
+		theData <- gsub("<search-results.+?>", "", theData, useBytes = TRUE)
+		theData <- gsub("</search-results>", "", theData, fixed = TRUE) ## remove all headers and footers of the separate XML files
 		theData <- paste("<?xml version=\"1.0\" encoding=\"UTF-8\"?><search-results xmlns=\"http://www.w3.org/2005/Atom\" xmlns:cto=\"http://www.elsevier.com/xml/cto/dtd\" xmlns:atom=\"http://www.w3.org/2005/Atom\" xmlns:prism=\"http://prismstandard.org/namespaces/basic/2.0/\" xmlns:opensearch=\"http://a9.com/-/spec/opensearch/1.1/\" xmlns:dc=\"http://purl.org/dc/elements/1.1/\">", theData)
-		theData <- paste(theData, "</search-results>")
+		theData <- paste(theData, "</search-results>") ## add the correct header to the beginning of the file and the correct footer to the end of the file
+
 		writeLines(theData, outfile, useBytes = TRUE)
 		print("Done")
 		return(theData)
@@ -98,10 +106,11 @@ searchByID <- function(myFile, idtype, datatype = "application/xml", content = "
 		print(paste("Retrieved", retrievedCount, "records. Formatting results."))
 		writeLines(theData, outfile, useBytes = TRUE)
 		theData <- readChar(outfile, file.info(outfile)$size)
-		theData <- gsub("<?xml version=\"1.0\" encoding=\"UTF-8\"?><search-results xmlns=\"http://www.w3.org/2005/Atom\" xmlns:cto=\"http://www.elsevier.com/xml/cto/dtd\" xmlns:atom=\"http://www.w3.org/2005/Atom\" xmlns:prism=\"http://prismstandard.org/namespaces/basic/2.0/\" xmlns:opensearch=\"http://a9.com/-/spec/opensearch/1.1/\" xmlns:dc=\"http://purl.org/dc/elements/1.1/\">", "", theData, fixed = TRUE, useBytes = TRUE)
-		theData <- gsub("</search-results>", "", theData, fixed = TRUE)
+		theData <- gsub("<?xml version=\"1.0\" encoding=\"UTF-8\"?>", "", theData, fixed = TRUE, useBytes = TRUE)
+		theData <- gsub("<search-results.+?>", "", theData, useBytes = TRUE)
+		theData <- gsub("</search-results>", "", theData, fixed = TRUE) ## remove all headers and footers of the separate XML files
 		theData <- paste("<?xml version=\"1.0\" encoding=\"UTF-8\"?><search-results xmlns=\"http://www.w3.org/2005/Atom\" xmlns:cto=\"http://www.elsevier.com/xml/cto/dtd\" xmlns:atom=\"http://www.w3.org/2005/Atom\" xmlns:prism=\"http://prismstandard.org/namespaces/basic/2.0/\" xmlns:opensearch=\"http://a9.com/-/spec/opensearch/1.1/\" xmlns:dc=\"http://purl.org/dc/elements/1.1/\">", theData)
-		theData <- paste(theData, "</search-results>")
+		theData <- paste(theData, "</search-results>") ## add the correct header to the beginning of the file and the correct footer to the end of the file
 		writeLines(theData, outfile, useBytes = TRUE)
 		print("Done")
 		return(theData)
@@ -125,10 +134,11 @@ searchByID <- function(myFile, idtype, datatype = "application/xml", content = "
 	print(paste("Retrieved", retrievedCount, "records. Formatting results."))
 	writeLines(theData, outfile, useBytes = TRUE)
 	theData <- readChar(outfile, file.info(outfile)$size)
-	theData <- gsub("<?xml version=\"1.0\" encoding=\"UTF-8\"?><search-results xmlns=\"http://www.w3.org/2005/Atom\" xmlns:cto=\"http://www.elsevier.com/xml/cto/dtd\" xmlns:atom=\"http://www.w3.org/2005/Atom\" xmlns:prism=\"http://prismstandard.org/namespaces/basic/2.0/\" xmlns:opensearch=\"http://a9.com/-/spec/opensearch/1.1/\" xmlns:dc=\"http://purl.org/dc/elements/1.1/\">", "", theData, fixed = TRUE, useBytes = TRUE)
-	theData <- gsub("</search-results>", "", theData, fixed = TRUE)
+	theData <- gsub("<?xml version=\"1.0\" encoding=\"UTF-8\"?>", "", theData, fixed = TRUE, useBytes = TRUE)
+	theData <- gsub("<search-results.+?>", "", theData, useBytes = TRUE)
+	theData <- gsub("</search-results>", "", theData, fixed = TRUE) ## remove all headers and footers of the separate XML files
 	theData <- paste("<?xml version=\"1.0\" encoding=\"UTF-8\"?><search-results xmlns=\"http://www.w3.org/2005/Atom\" xmlns:cto=\"http://www.elsevier.com/xml/cto/dtd\" xmlns:atom=\"http://www.w3.org/2005/Atom\" xmlns:prism=\"http://prismstandard.org/namespaces/basic/2.0/\" xmlns:opensearch=\"http://a9.com/-/spec/opensearch/1.1/\" xmlns:dc=\"http://purl.org/dc/elements/1.1/\">", theData)
-	theData <- paste(theData, "</search-results>")
+	theData <- paste(theData, "</search-results>") ## add the correct header to the beginning of the file and the correct footer to the end of the file
 	writeLines(theData, outfile, useBytes = TRUE)
 	print("Done")
 	return(theData)
