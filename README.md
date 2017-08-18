@@ -30,13 +30,15 @@ The function has six arguments: string, datatype, content, myStart, retCount, an
 * **content:** how many fields you want to return (either "complete" which returns all available fields or "standard" which returns an abbreviated record).
 * **myStart:** which search result you want to start downloading from. Limited to the first 5,000 records for any given search string. Setting this value to 5,001 or higher will result in an error.
 * **retCount:** how many records you want to download per request. Limited to 25 per request for "complete" content; requests for more than 25 with the "complete" content type will return an error.
+* **retMax:** the maximum number of records you want to download. The function will continue to make requests until it reaches either the total number of search results or the retMax, if specified. If unspecified, it will return all of the search results. 
+* **mySort:** how you want the search results to be sorted. Currently defaults to descending order by cover date, but could also be set to descending order by times cited count ("-citedby-count") or relevance ("-relevancy"). See the Scopus Search API wadl for more options.  
 * **outfile:** the file you want to save the data to.
 
-All but two of these arguments have default values: datatype defaults to "application/xml", content to "complete", myStart to 0, and retCount to 25. So, you only need to specify the string and the outfile for the function to work. 
+All but two of these arguments have default values: datatype defaults to "application/xml", content to "complete", myStart to 0, retCount to Inf, mySort to "-coverDate", and retCount to 25. So, you only need to specify the string and the outfile for the function to work. 
 
 ## The searchByID() method
 
-This function allows you to search for a list of article IDs and download the matching search results. It can search for PMIDs, DOIs, or EIDs (Scopus ID numbers). The function expects the list of article IDs to be in a text file with a single article ID per line.
+This function allows you to search for a list of article IDs and download the matching search results. It can search for PMIDs, DOIs, or EIDs (Scopus ID numbers). The function expects the list of article IDs to be either a character vector from R (e.g. myData$scopusID) or a text file with a single article ID per line.
 
 The function has all of the same arguments and default values as the searchByString() method, but it also has an "idtype" argument which requires you to specify what kind of article ID you want to search for ("pmid", "doi", or "eid"). 
 
