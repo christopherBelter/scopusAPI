@@ -1,3 +1,4 @@
+## version 0.3
 searchByString <- function(string, datatype = "application/xml", content = "complete", myStart = 0, retCount = 25, retMax = Inf, mySort = "-coverDate", outfile) {
 	if (!datatype %in% c("application/xml", "application/json", "application/atom+xml")) { ## error checking for valid inputs to the function
 		stop("Invalid datatype. Valid types are 'application/xml', 'application/json', and 'application/atom+xml'")
@@ -10,7 +11,7 @@ searchByString <- function(string, datatype = "application/xml", content = "comp
 		library(XML)
 		key <- "yourAPIkey"
 		print("Retrieving records.")
-		theURL <- GET("http://api.elsevier.com/content/search/scopus", query = list(apiKey = key, query = string, sort = mySort, httpAccept = datatype, view = content, count = retCount, start = myStart)) ## format the URL to be sent to the API
+		theURL <- GET("https://api.elsevier.com/content/search/scopus", query = list(apiKey = key, query = string, sort = mySort, httpAccept = datatype, view = content, count = retCount, start = myStart)) ## format the URL to be sent to the API
 		stop_for_status(theURL) ## pass any HTTP errors to the R console
 		theData <- content(theURL, as = "text") ## extract the content of the response
 		newData <- xmlParse(theURL) ## parse the data to extract values
@@ -20,7 +21,7 @@ searchByString <- function(string, datatype = "application/xml", content = "comp
 		while (resultCount > retrievedCount && retrievedCount < retMax) { ## check if it's necessary to perform multiple requests to retrieve all of the results; if so, create a loop to retrieve additional pages of results
 			myStart <- myStart + retCount ## add the number of records already returned to the start number
 			print(paste("Retrieved", retrievedCount, "of", resultCount, "records. Getting more."))
-			theURL <- GET("http://api.elsevier.com/content/search/scopus", query = list(apiKey = key, query = string,  sort = mySort, httpAccept = datatype, view = content, count = retCount, start = myStart)) ## get the next page of results
+			theURL <- GET("https://api.elsevier.com/content/search/scopus", query = list(apiKey = key, query = string,  sort = mySort, httpAccept = datatype, view = content, count = retCount, start = myStart)) ## get the next page of results
 			theData <- paste(theData, content(theURL, as = "text")) ## paste new theURL content to theData; if there's an HTTP error, the XML of the error will be pasted to the end of theData
 			if (http_error(theURL) == TRUE) { ## check if there's an HTTP error
 				print("Encountered an HTTP error. Details follow.") ## alert the user to the error
@@ -63,7 +64,7 @@ searchByID <- function(theIDs, idtype, datatype = "application/xml", content = "
 		print(paste("Retrieving", resultCount, "records."))
 		for (i in 1:length(idList)) { ## loop through the list of search strings and return data for each one
 			string <- idList[i]
-			theURL <- GET("http://api.elsevier.com/content/search/scopus", query = list(apiKey = key, query = string, httpAccept = datatype, view = content, count = retCount, start = myStart))
+			theURL <- GET("https://api.elsevier.com/content/search/scopus", query = list(apiKey = key, query = string, httpAccept = datatype, view = content, count = retCount, start = myStart))
 			theData <- paste(theData, content(theURL, as = "text")) ## paste new theURL content to theData
 			if (http_error(theURL) == TRUE) { ## check if there's an HTTP error
 				print("Encountered an HTTP error. Details follow.") ## alert the user to the error
@@ -92,7 +93,7 @@ searchByID <- function(theIDs, idtype, datatype = "application/xml", content = "
 		print(paste("Retrieving", resultCount, "records."))
 		for (i in 1:length(idList)) {
 			string <- idList[i]
-			theURL <- GET("http://api.elsevier.com/content/search/scopus", query = list(apiKey = key, query = string, httpAccept = datatype, view = content, count = retCount, start = myStart))
+			theURL <- GET("https://api.elsevier.com/content/search/scopus", query = list(apiKey = key, query = string, httpAccept = datatype, view = content, count = retCount, start = myStart))
 			theData <- paste(theData, content(theURL, as = "text")) ## paste new theURL content to theData
 			if (http_error(theURL) == TRUE) { ## check if there's an HTTP error
 				print("Encountered an HTTP error. Details follow.") ## alert the user to the error
@@ -120,7 +121,7 @@ searchByID <- function(theIDs, idtype, datatype = "application/xml", content = "
 	print(paste("Retrieving", resultCount, "records."))
 	for (i in 1:length(idList)) {
 		string <- idList[i]
-		theURL <- GET("http://api.elsevier.com/content/search/scopus", query = list(apiKey = key, query = string, httpAccept = datatype, view = content, count = retCount, start = myStart))
+		theURL <- GET("https://api.elsevier.com/content/search/scopus", query = list(apiKey = key, query = string, httpAccept = datatype, view = content, count = retCount, start = myStart))
 		theData <- paste(theData, content(theURL, as = "text")) ## paste new theURL content to theData
 		if (http_error(theURL) == TRUE) { ## check if there's an HTTP error
 			print("Encountered an HTTP error. Details follow.") ## alert the user to the error
