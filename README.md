@@ -6,7 +6,7 @@ The functions in this file allow you to query the Scopus Search API in R and par
 
 You will need to obtain a personal API key from Elsevier. You can request one at http://dev.elsevier.com/. Click on the "Get API Key" button, log in to the site, and then click on "register a new site." Enter the requested information and use your institution's home page as the site. 
 
-You will then need to copy/paste your API key into the scopusAPI.R file at lines 12 and 51, replacing the yourAPIkey text with your API key.
+You will then need to copy/paste your API key into the scopusAPI.R file at lines 9 and 52, replacing the yourAPIKey text with your API key.
 
 You will also need to install the httr and XML packages, if you haven't already done so, with the command
 
@@ -14,33 +14,32 @@ You will also need to install the httr and XML packages, if you haven't already 
 
 Finally, there are some API limits you should be aware of. First, if you want to download the full records of your search results (inlcuding the full author list and abstract for each document), you are limited to requesting 25 articles at a time. The searchByString() and searchByID() functions will automatically send multiple requests to the API to retrieve the full set of search results for your particular query, but it can only retrieve 25 full records at a time. 
 
-Second, you can only access the first 5,000 records for any given search string. If your search string returns more than 5,000 search results, you can try to modify the search string to return less than 5,000 results, but otherwise you can only retrieve the first 5,000. 
+Second, you can only request the first 5,000 records using the 'offset' parameter. This used to mean that you could only request up to 5,000 records for a single search string, but Elsevier has added a new 'cursor' parameter that allows you to bypass this limit. The new version of the searchByString() function uses this cursor parameter instead of the myStart parameter to iterate through the search results. In practice, this means you shouldn't use the myStart parameter unless you really need to. 
 
 Finally, you are limited to downloading 20,000 records per week. 
-
-I am told that Elsevier is looking into lifting the 5,000 record limit sometime in the near future. They may also ease the 25 records per request limit at some point. 
+ 
 
 ## The searchByString() method
 
 This function allows you to run an advanced search through the API and download all of the search results. I recommend developing the search string in the Scopus web interface and then using that string in the API to obtain the results. 
 
-The function has six arguments: string, datatype, content, myStart, retCount, and outfile. 
+The function has eight arguments: string, content, myStart, retCount, retMax, mySort, cursor, and outfile. 
 * **string:** the advanced search string you want to use.
-* **datatype:** what format you want the data returned in ("application/xml", "application/atom+xml" or "application/json").
 * **content:** how many fields you want to return (either "complete" which returns all available fields or "standard" which returns an abbreviated record).
-* **myStart:** which search result you want to start downloading from. Limited to the first 5,000 records for any given search string. Setting this value to 5,001 or higher will result in an error.
+* **myStart:** which search result you want to start downloading from. Limited to the first 5,000 records for any given search string. Setting this value to 5,001 or higher will result in an error. In practice, you shouldn't need to use this unless your download process was interrupted and you want to pick up at the point where the error happened.
 * **retCount:** how many records you want to download per request. Limited to 25 per request for "complete" content; requests for more than 25 with the "complete" content type will return an error.
 * **retMax:** the maximum number of records you want to download. The function will continue to make requests until it reaches either the total number of search results or the retMax, if specified. If unspecified, it will return all of the search results. 
-* **mySort:** how you want the search results to be sorted. Currently defaults to descending order by cover date, but could also be set to descending order by times cited count ("-citedby-count") or relevance ("-relevancy"). See the Scopus Search API wadl for more options.  
+* **mySort:** how you want the search results to be sorted. Currently defaults to descending order by cover date, but could also be set to descending order by times cited count ("-citedby-count") or relevance ("-relevancy"). See the Scopus Search API wadl for more options. 
+* **cursor:** a parameter used to iterate through a set of search results beyond 5,000. You shouldn't ever change this from it's default value. 
 * **outfile:** the file you want to save the data to.
 
-All but two of these arguments have default values: datatype defaults to "application/xml", content to "complete", myStart to 0, retCount to Inf, mySort to "-coverDate", and retCount to 25. So, you only need to specify the string and the outfile for the function to work. 
+All but two of these arguments have default values: content defaults to "complete", myStart to 0, retCount to Inf, mySort to "-coverDate", cursor to the necessary value supplied by the Elsevier API, and retCount to 25. So, you only need to specify the string and the outfile for the function to work. 
 
 ## The searchByID() method
 
 This function allows you to search for a list of article IDs and download the matching search results. It can search for PMIDs, DOIs, or EIDs (Scopus ID numbers). The function expects the list of article IDs to be either a character vector from R (e.g. myData$scopusID) or a text file with a single article ID per line.
 
-The function has all of the same arguments and default values as the searchByString() method, but it also has an "idtype" argument which requires you to specify what kind of article ID you want to search for ("pmid", "doi", or "eid"). 
+The function has similar arguments and default values to the searchByString() method, but it also has an "idtype" argument which requires you to specify what kind of article ID you want to search for ("pmid", "doi", or "eid"). 
 
 ## The extractXML() function
 
