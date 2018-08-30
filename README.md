@@ -12,7 +12,9 @@ You will also need to install the httr and XML packages, if you haven't already 
 
     install.packages(c("httr", "XML"))
 
-Finally, there are some API limits you should be aware of. First, if you want to download the full records of your search results (inlcuding the full author list and abstract for each document), you are limited to requesting 25 articles at a time. The searchByString() and searchByID() functions will automatically send multiple requests to the API to retrieve the full set of search results for your particular query, but it can only retrieve 25 full records at a time. 
+Finally, there are some API limits you should be aware of. 
+
+First, if you want to download the full records of your search results (inlcuding the full author list and abstract for each document), you are limited to requesting 25 articles at a time. The searchByString() and searchByID() functions will automatically send multiple requests to the API to retrieve the full set of search results for your particular query, but it can only retrieve 25 full records at a time. 
 
 Second, you can only request the first 5,000 records using the 'offset' parameter. This used to mean that you could only request up to 5,000 records for a single search string, but Elsevier has added a new 'cursor' parameter that allows you to bypass this limit. The new version of the searchByString() function uses this cursor parameter instead of the myStart parameter to iterate through the search results. In practice, this means you shouldn't use the myStart parameter unless you really need to. 
 
