@@ -79,7 +79,7 @@ Set your working directory and load the scopusAPI.R file
 
 Then run the set of article IDs (in this example PMIDs) against the Scopus Search API and download the matching results 
 
-    theXML <- searchByID(myFile = "testPMIDs.txt", idtype = "pmid", outfile = "test.xml")
+    theXML <- searchByID(theIDs = "testPMIDs.txt", idtype = "pmid", outfile = "test.xml")
 
 Then when the function is finished, extract the values from the resulting XML
 
