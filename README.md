@@ -8,6 +8,8 @@ You will need to obtain a personal API key from Elsevier. You can request one at
 
 You will then need to copy/paste your API key into the scopusAPI.R file at lines 9 and 52, replacing the yourAPIKey text with your API key.
 
+Note also that if your institution uses IP authentication to verify your access to Scopus, you have to make the API calls from an authenticated IP address. In practice, this means you need to make the API calls from a computer that is on your institution's network either on campus or removely via a VPN connection.
+
 You will also need to install the httr and XML packages, if you haven't already done so, with the command
 
     install.packages(c("httr", "XML"))
